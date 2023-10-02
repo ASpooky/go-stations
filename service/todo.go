@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/TechBowl-japan/go-stations/model"
 )
@@ -83,8 +82,9 @@ func (s *TODOService) UpdateTODO(ctx context.Context, id int64, subject, descrip
 		update  = `UPDATE todos SET subject = ?, description = ? WHERE id = ?`
 		confirm = `SELECT subject, description, created_at, updated_at FROM todos WHERE id = ?`
 	)
+	return nil, nil
 
-	response := model.TODO{}
+	/* response := model.TODO{}
 
 	smtm, err := s.db.PrepareContext(ctx, update)
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *TODOService) UpdateTODO(ctx context.Context, id int64, subject, descrip
 		return nil, err
 	}
 
-	return &response, nil
+	return &response, nil */
 }
 
 // DeleteTODO deletes TODOs on DB by ids.
