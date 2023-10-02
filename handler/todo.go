@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 
 	"github.com/TechBowl-japan/go-stations/model"
 	"github.com/TechBowl-japan/go-stations/service"
@@ -25,7 +26,11 @@ func NewTODOHandler(svc *service.TODOService) *TODOHandler {
 
 // Create handles the endpoint that creates the TODO.
 func (h *TODOHandler) Create(ctx context.Context, req *model.CreateTODORequest) (*model.CreateTODOResponse, error) {
-	result, _ := h.svc.CreateTODO(ctx, req.Subject, req.Description)
+	result, err := h.svc.CreateTODO(ctx, req.Subject, req.Description)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
 	res := model.CreateTODOResponse{}
 	res.TODO.ID = result.ID
 	res.TODO.Subject = result.Subject
@@ -37,13 +42,23 @@ func (h *TODOHandler) Create(ctx context.Context, req *model.CreateTODORequest) 
 
 // Read handles the endpoint that reads the TODOs.
 func (h *TODOHandler) Read(ctx context.Context, req *model.ReadTODORequest) (*model.ReadTODOResponse, error) {
-	_, _ = h.svc.ReadTODO(ctx, 0, 0)
-	return &model.ReadTODOResponse{}, nil
+	result, err := h.svc.ReadTODO(ctx, req.PrevID, req.Size)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+	res := model.ReadTODOResponse{}
+	res.TODOs = result
+	return &res, nil
 }
 
 // Update handles the endpoint that updates the TODO.
 func (h *TODOHandler) Update(ctx context.Context, req *model.UpdateTODORequest) (*model.UpdateTODOResponse, error) {
-	result, _ := h.svc.UpdateTODO(ctx, req.ID, req.Subject, req.Description)
+	result, err := h.svc.UpdateTODO(ctx, req.ID, req.Subject, req.Description)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
 	res := model.UpdateTODOResponse{}
 	res.TODO.ID = result.ID
 	res.TODO.Subject = result.Subject
@@ -103,7 +118,7 @@ func (h *TODOHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			response, err := h.Update(ctx, &request)
 			if err != nil {
-				fmt.Println("in handler" + err.Error())
+				fmt.Println(err.Error())
 				if reflect.TypeOf(err) == reflect.TypeOf(&model.ErrNotFound{}) {
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 					return
@@ -116,5 +131,43 @@ func (h *TODOHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	} else if method == "GET" {
+		request := model.ReadTODORequest{Size: 3}
+		prevId := r.FormValue("prev_id")
+		size := r.FormValue("size")
+		if len(prevId) > 0 {
+
+			intPrevId, err := strconv.Atoi(prevId)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			request.PrevID = int64(intPrevId)
+		}
+		if len(size) > 0 {
+			intSize, err := strconv.Atoi(size)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			request.Size = int64(intSize)
+		}
+
+		ctx := r.Context()
+		response, err := h.Read(ctx, &request)
+		if err != nil {
+			fmt.Println(err.Error())
+			if reflect.TypeOf(err) == reflect.TypeOf(&model.ErrNotFound{}) {
+				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+				return
+			}
+			return
+		}
+		e := json.NewEncoder(w)
+		if err := e.Encode(response); err != nil {
+			fmt.Println(err)
+			return
+		}
+		return
 	}
 }
