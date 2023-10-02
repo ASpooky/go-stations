@@ -2,6 +2,10 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
 
 	"github.com/TechBowl-japan/go-stations/model"
 	"github.com/TechBowl-japan/go-stations/service"
@@ -21,8 +25,14 @@ func NewTODOHandler(svc *service.TODOService) *TODOHandler {
 
 // Create handles the endpoint that creates the TODO.
 func (h *TODOHandler) Create(ctx context.Context, req *model.CreateTODORequest) (*model.CreateTODOResponse, error) {
-	_, _ = h.svc.CreateTODO(ctx, "", "")
-	return &model.CreateTODOResponse{}, nil
+	result, _ := h.svc.CreateTODO(ctx, req.Subject, req.Description)
+	res := model.CreateTODOResponse{}
+	res.TODO.ID = result.ID
+	res.TODO.Subject = result.Subject
+	res.TODO.Description = result.Description
+	res.TODO.CreatedAt = result.CreatedAt
+	res.TODO.UpdatedAt = result.UpdatedAt
+	return &res, nil
 }
 
 // Read handles the endpoint that reads the TODOs.
@@ -41,4 +51,36 @@ func (h *TODOHandler) Update(ctx context.Context, req *model.UpdateTODORequest) 
 func (h *TODOHandler) Delete(ctx context.Context, req *model.DeleteTODORequest) (*model.DeleteTODOResponse, error) {
 	_ = h.svc.DeleteTODO(ctx, nil)
 	return &model.DeleteTODOResponse{}, nil
+}
+
+func (h *TODOHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+
+	if method == "POST" {
+		request := model.CreateTODORequest{}
+		len := r.ContentLength
+		body := make([]byte, len)
+		r.Body.Read(body)
+		err := json.Unmarshal(body, &request)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if request.Subject == "" {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		} else {
+			ctx := r.Context()
+			response, err := h.Create(ctx, &request)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+			e := json.NewEncoder(w)
+			if err := e.Encode(response); err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+
+	}
 }

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/TechBowl-japan/go-stations/model"
@@ -16,5 +18,15 @@ func NewHealthzHandler() *HealthzHandler {
 
 // ServeHTTP implements http.Handler interface.
 func (h *HealthzHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	_ = &model.HealthzResponse{}
+	HealthzResponse := &model.HealthzResponse{}
+	HealthzResponse.Message = "OK"
+
+	e := json.NewEncoder(w)
+
+	hr := HealthzResponse
+
+	if err := e.Encode(hr); err != nil {
+		fmt.Println(err)
+		return
+	}
 }

@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/TechBowl-japan/go-stations/model"
 )
@@ -26,7 +28,43 @@ func (s *TODOService) CreateTODO(ctx context.Context, subject, description strin
 		confirm = `SELECT subject, description, created_at, updated_at FROM todos WHERE id = ?`
 	)
 
-	return nil, nil
+	response := model.TODO{}
+
+	smtm, err := s.db.PrepareContext(ctx, insert)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	//保存
+	result, err := smtm.ExecContext(ctx, subject, description)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	//resultからIDを取得
+	lastId, err := result.LastInsertId()
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+	response.ID = int(lastId)
+
+	smtm, err = s.db.PrepareContext(ctx, confirm)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	//確認
+	err = smtm.QueryRowContext(ctx, lastId).Scan(&response.Subject, &response.Description, &response.CreatedAt, &response.UpdatedAt)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	return &response, nil
 }
 
 // ReadTODO reads TODOs on DB.
@@ -46,7 +84,50 @@ func (s *TODOService) UpdateTODO(ctx context.Context, id int64, subject, descrip
 		confirm = `SELECT subject, description, created_at, updated_at FROM todos WHERE id = ?`
 	)
 
-	return nil, nil
+	response := model.TODO{}
+
+	smtm, err := s.db.PrepareContext(ctx, update)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	//保存
+	result, err := smtm.ExecContext(ctx, subject, description, id)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	rowAffected, err := result.RowsAffected()
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	if rowAffected == 0 {
+		errNotFound := model.ErrNotFound{
+			What: "update record not found",
+			When: time.Now(),
+		}
+		fmt.Println(errNotFound)
+		return nil, &errNotFound
+	}
+
+	smtm, err = s.db.PrepareContext(ctx, confirm)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	//確認
+	err = smtm.QueryRowContext(ctx, id).Scan(&response.Subject, &response.Description, &response.CreatedAt, &response.UpdatedAt)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+
+	return &response, nil
 }
 
 // DeleteTODO deletes TODOs on DB by ids.

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -51,6 +53,11 @@ func realMain() error {
 	mux := router.NewRouter(todoDB)
 
 	// TODO: サーバーをlistenする
+	server_err := http.ListenAndServe(port, mux)
+	if server_err != nil {
+		fmt.Printf("Internal Server Error:%s\n", server_err)
+		os.Exit(1)
+	}
 
 	return nil
 }
